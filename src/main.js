@@ -58,9 +58,12 @@ async function main() {
   $('checkpoint').textContent = cfg.checkpoint;
 
   const JOINT_NAMES = ['L hip', 'L knee', 'L wheel', 'R hip', 'R knee', 'R wheel'];
-  const jointCells = JOINT_NAMES.map((name) => {
+  const JOINT_COLORS = ['#2463eb', '#d9482b', '#1f9d55', '#2463eb', '#d9482b', '#1f9d55'];
+  const jointCells = JOINT_NAMES.map((name, j) => {
     const tr = $('joints').tBodies[0].insertRow();
-    tr.insertCell().textContent = name;
+    const label = tr.insertCell();
+    label.textContent = name;
+    label.style.borderLeft = `3px ${j < 3 ? 'solid' : 'dashed'} ${JOINT_COLORS[j]}`;
     return [tr.insertCell(), tr.insertCell()];
   });
   const updateJoints = () => {
@@ -70,6 +73,57 @@ async function main() {
       trq.textContent = tau[6 + j].toFixed(0);
       trq.style.setProperty('--w', `${(100 * Math.abs(tau[6 + j]) / cfg.torque_limit).toFixed(0)}%`);
     });
+  };
+
+  const PLOT_SECONDS = 5;
+  const histLen = Math.round(PLOT_SECONDS / cfg.control_dt);
+  const hist = { vel: JOINT_NAMES.map(() => new Float32Array(histLen)), trq: JOINT_NAMES.map(() => new Float32Array(histLen)), head: 0, count: 0 };
+  const recordJoints = () => {
+    const qd = sim.data.qvel, tau = sim.data.qfrc_applied;
+    for (let j = 0; j < 6; j++) {
+      hist.vel[j][hist.head] = qd[6 + j];
+      hist.trq[j][hist.head] = tau[6 + j];
+    }
+    hist.head = (hist.head + 1) % histLen;
+    hist.count = Math.min(hist.count + 1, histLen);
+  };
+  const clearJoints = () => { hist.head = hist.count = 0; };
+  const drawPlot = (canvas, rows, yMax, unit) => {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(20, 30, 45, 0.25)';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    g.fillStyle = '#5a6675';
+    g.font = '10px system-ui, sans-serif';
+    g.textBaseline = 'top';
+    g.fillText(`±${yMax} ${unit}`, 2, 1);
+    g.textAlign = 'right';
+    g.fillText(`${PLOT_SECONDS} s`, w - 2, 1);
+    g.textAlign = 'left';
+    const first = (hist.head - hist.count + histLen) % histLen;
+    rows.forEach((row, j) => {
+      g.strokeStyle = JOINT_COLORS[j];
+      g.setLineDash(j < 3 ? [] : [3, 2]);
+      g.beginPath();
+      for (let k = 0; k < hist.count; k++) {
+        const x = (w * (histLen - hist.count + k)) / (histLen - 1);
+        const y = h / 2 - (h / 2) * Math.min(Math.max(row[(first + k) % histLen] / yMax, -1), 1);
+        if (k === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.stroke();
+    });
+    g.setLineDash([]);
+  };
+  const drawJoints = () => {
+    let vMax = 1;
+    for (const row of hist.vel) for (let k = 0; k < hist.count; k++) vMax = Math.max(vMax, Math.abs(row[k]));
+    drawPlot($('plot-vel'), hist.vel, Math.ceil(vMax), 'rad/s');
+    drawPlot($('plot-trq'), hist.trq, cfg.torque_limit, 'N·m');
   };
 
   const joystick = new Joystick($('joystick'));
@@ -91,6 +145,7 @@ async function main() {
   showLevel();
   const reset = () => {
     sim.reset();
+    clearJoints();
     state.cmd = [0, 0];
     state.fallTimer = null;
     $('banner').hidden = true;
@@ -181,6 +236,7 @@ async function main() {
         return c + Math.min(Math.max(target[i] - c, -a), a);
       });
       const fell = await sim.step(state.cmd[0], state.cmd[1]);
+      recordJoints();
       simClock += ctrl;
       const q = sim.data.qpos;
       if (fell || !sim.terrain.inside(q[0], q[1], 0.6)) {
@@ -195,6 +251,7 @@ async function main() {
     $('hud-cmd').textContent = `${state.cmd[0].toFixed(2)} m/s  ${state.cmd[1].toFixed(2)} rad/s`;
     $('hud-act').textContent = `${lin[0].toFixed(2)} m/s  ${ang[2].toFixed(2)} rad/s`;
     updateJoints();
+    drawJoints();
     wallClock += dt;
     if (wallClock > 1) {
       $('hud-rt').textContent = `${(simClock / wallClock).toFixed(2)}×`;
