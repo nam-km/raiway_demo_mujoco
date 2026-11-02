@@ -53,12 +53,10 @@
       <dt>Measured</dt><dd id="hud-act">–</dd>
       <dt>Real-time</dt><dd id="hud-rt">–</dd>
     </dl>
-    <table id="joints">
-      <thead><tr><th></th><th>q̇ rad/s</th><th>τ N·m</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <canvas id="plot-vel" class="plot"></canvas>
-    <canvas id="plot-trq" class="plot"></canvas>
+    <div id="plots">
+      <div class="plots-head">Joints · last 5 s <button id="plots-all" type="button" hidden>show all</button></div>
+      <div class="plots-grid"></div>
+    </div>
     <p class="foot">Policy <code id="checkpoint"></code></p>
   </aside>
 

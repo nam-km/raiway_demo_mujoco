@@ -57,27 +57,10 @@ async function main() {
   $('loading').remove();
   $('checkpoint').textContent = cfg.checkpoint;
 
-  const JOINT_NAMES = ['L hip', 'L knee', 'L wheel', 'R hip', 'R knee', 'R wheel'];
-  const JOINT_COLORS = ['#2463eb', '#d9482b', '#1f9d55', '#2463eb', '#d9482b', '#1f9d55'];
-  const jointCells = JOINT_NAMES.map((name, j) => {
-    const tr = $('joints').tBodies[0].insertRow();
-    const label = tr.insertCell();
-    label.textContent = name;
-    label.style.borderLeft = `3px ${j < 3 ? 'solid' : 'dashed'} ${JOINT_COLORS[j]}`;
-    return [tr.insertCell(), tr.insertCell()];
-  });
-  const updateJoints = () => {
-    const qd = sim.data.qvel, tau = sim.data.qfrc_applied;
-    jointCells.forEach(([vel, trq], j) => {
-      vel.textContent = qd[6 + j].toFixed(1);
-      trq.textContent = tau[6 + j].toFixed(0);
-      trq.style.setProperty('--w', `${(100 * Math.abs(tau[6 + j]) / cfg.torque_limit).toFixed(0)}%`);
-    });
-  };
-
   const PLOT_SECONDS = 5;
+  const GROUPS = [['hip', '#2463eb', 0], ['knee', '#d9482b', 1], ['wheel', '#1f9d55', 2]];
   const histLen = Math.round(PLOT_SECONDS / cfg.control_dt);
-  const hist = { vel: JOINT_NAMES.map(() => new Float32Array(histLen)), trq: JOINT_NAMES.map(() => new Float32Array(histLen)), head: 0, count: 0 };
+  const hist = { vel: Array.from({ length: 6 }, () => new Float32Array(histLen)), trq: Array.from({ length: 6 }, () => new Float32Array(histLen)), head: 0, count: 0 };
   const recordJoints = () => {
     const qd = sim.data.qvel, tau = sim.data.qfrc_applied;
     for (let j = 0; j < 6; j++) {
@@ -88,10 +71,25 @@ async function main() {
     hist.count = Math.min(hist.count + 1, histLen);
   };
   const clearJoints = () => { hist.head = hist.count = 0; };
-  const drawPlot = (canvas, rows, yMax, unit) => {
+  const plots = [];
+  for (const [name, color, j] of GROUPS) {
+    for (const [kind, unit] of [['vel', 'rad/s'], ['trq', 'N·m']]) {
+      const box = document.createElement('div');
+      box.className = 'plot';
+      box.innerHTML = `<div class="plot-title"><span>${name} ${kind === 'vel' ? 'q̇' : 'τ'}</span><button type="button" title="Close">×</button></div><canvas></canvas>`;
+      box.querySelector('button').addEventListener('click', () => { box.hidden = true; $('plots-all').hidden = false; });
+      $('plots').querySelector('.plots-grid').append(box);
+      plots.push({ box, canvas: box.querySelector('canvas'), rows: [hist[kind][j], hist[kind][j + 3]], color, unit, fixed: kind === 'trq' });
+    }
+  }
+  $('plots-all').addEventListener('click', () => { plots.forEach((p) => { p.box.hidden = false; }); $('plots-all').hidden = true; });
+  const drawPlot = ({ canvas, rows, color, unit, fixed }) => {
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    let yMax = fixed ? cfg.torque_limit : 1;
+    if (!fixed) for (const row of rows) for (let k = 0; k < hist.count; k++) yMax = Math.max(yMax, Math.abs(row[k]));
+    yMax = Math.ceil(yMax);
     const g = canvas.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
@@ -99,16 +97,13 @@ async function main() {
     g.lineWidth = 1;
     g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
     g.fillStyle = '#5a6675';
-    g.font = '10px system-ui, sans-serif';
+    g.font = '9px system-ui, sans-serif';
     g.textBaseline = 'top';
     g.fillText(`±${yMax} ${unit}`, 2, 1);
-    g.textAlign = 'right';
-    g.fillText(`${PLOT_SECONDS} s`, w - 2, 1);
-    g.textAlign = 'left';
     const first = (hist.head - hist.count + histLen) % histLen;
-    rows.forEach((row, j) => {
-      g.strokeStyle = JOINT_COLORS[j];
-      g.setLineDash(j < 3 ? [] : [3, 2]);
+    rows.forEach((row, side) => {
+      g.strokeStyle = color;
+      g.setLineDash(side === 0 ? [] : [3, 2]);
       g.beginPath();
       for (let k = 0; k < hist.count; k++) {
         const x = (w * (histLen - hist.count + k)) / (histLen - 1);
@@ -119,12 +114,7 @@ async function main() {
     });
     g.setLineDash([]);
   };
-  const drawJoints = () => {
-    let vMax = 1;
-    for (const row of hist.vel) for (let k = 0; k < hist.count; k++) vMax = Math.max(vMax, Math.abs(row[k]));
-    drawPlot($('plot-vel'), hist.vel, Math.ceil(vMax), 'rad/s');
-    drawPlot($('plot-trq'), hist.trq, cfg.torque_limit, 'N·m');
-  };
+  const drawJoints = () => { for (const p of plots) if (!p.box.hidden) drawPlot(p); };
 
   const joystick = new Joystick($('joystick'));
   const keys = new Set();
@@ -250,7 +240,6 @@ async function main() {
     const { lin, ang } = sim.bodyVelocity();
     $('hud-cmd').textContent = `${state.cmd[0].toFixed(2)} m/s  ${state.cmd[1].toFixed(2)} rad/s`;
     $('hud-act').textContent = `${lin[0].toFixed(2)} m/s  ${ang[2].toFixed(2)} rad/s`;
-    updateJoints();
     drawJoints();
     wallClock += dt;
     if (wallClock > 1) {
