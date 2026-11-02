@@ -86,6 +86,21 @@ code { font-size: 11px; }
 #hud dt { color: var(--muted); }
 #hud dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
 
+#joints {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+#joints th { font-weight: normal; color: var(--muted); text-align: right; }
+#joints td { text-align: right; padding: 1px 4px; }
+#joints td:first-child { text-align: left; color: var(--muted); padding-left: 0; }
+#joints td:last-child {
+  --w: 0%;
+  background: linear-gradient(to left, rgba(36, 99, 235, 0.25) var(--w), transparent var(--w));
+}
+
 #joystick {
   position: fixed;
   right: 24px;

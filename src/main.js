@@ -57,6 +57,21 @@ async function main() {
   $('loading').remove();
   $('checkpoint').textContent = cfg.checkpoint;
 
+  const JOINT_NAMES = ['L hip', 'L knee', 'L wheel', 'R hip', 'R knee', 'R wheel'];
+  const jointCells = JOINT_NAMES.map((name) => {
+    const tr = $('joints').tBodies[0].insertRow();
+    tr.insertCell().textContent = name;
+    return [tr.insertCell(), tr.insertCell()];
+  });
+  const updateJoints = () => {
+    const qd = sim.data.qvel, tau = sim.data.qfrc_applied;
+    jointCells.forEach(([vel, trq], j) => {
+      vel.textContent = qd[6 + j].toFixed(1);
+      trq.textContent = tau[6 + j].toFixed(0);
+      trq.style.setProperty('--w', `${(100 * Math.abs(tau[6 + j]) / cfg.torque_limit).toFixed(0)}%`);
+    });
+  };
+
   const joystick = new Joystick($('joystick'));
   const keys = new Set();
   const state = { cmd: [0, 0], fallTimer: null, paused: false, speed: 1, policy: null, active: manifest.default };
@@ -179,6 +194,7 @@ async function main() {
     const { lin, ang } = sim.bodyVelocity();
     $('hud-cmd').textContent = `${state.cmd[0].toFixed(2)} m/s  ${state.cmd[1].toFixed(2)} rad/s`;
     $('hud-act').textContent = `${lin[0].toFixed(2)} m/s  ${ang[2].toFixed(2)} rad/s`;
+    updateJoints();
     wallClock += dt;
     if (wallClock > 1) {
       $('hud-rt').textContent = `${(simClock / wallClock).toFixed(2)}×`;
