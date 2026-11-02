@@ -32,4 +32,4 @@ const tail = (a) => a.slice(a.length >> 1);
 const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
 const wall = (performance.now() - t0) / 1000;
 console.log(JSON.stringify({ fell_at: fell, x: sim.data.qpos[0], vx_mean: fell === null ? mean(tail(vxs)) : null,
-  wz_mean: fell === null ? mean(tail(wzs)) : null, est_vx: sim.estimate[0], realtime_factor: (steps + 100) * cfg.control_dt / wall }));
+  wz_mean: fell === null ? mean(tail(wzs)) : null, est_vx: sim.estimate[0] ?? null, realtime_factor: (steps + 100) * cfg.control_dt / wall }));

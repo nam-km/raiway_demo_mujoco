@@ -179,12 +179,13 @@ export class RaiwaySim {
     const { cfg, ort } = this;
     this.command = [vx, 0, wz];
     const ob = this.observation();
-    const out = await this.session.run({
+    const feeds = {
       obs: new ort.Tensor('float32', Float32Array.from(ob), [1, cfg.ob_dim]),
-      est_input: new ort.Tensor('float32', this.estimatorInput(), [1, cfg.est_input_dim]),
       command: new ort.Tensor('float32', Float32Array.of(vx, wz), [1, 2]),
-    });
-    this.estimate = Array.from(out.estimate.data);
+    };
+    if (cfg.est_dim) feeds.est_input = new ort.Tensor('float32', this.estimatorInput(), [1, cfg.est_input_dim]);
+    const out = await this.session.run(feeds);
+    this.estimate = cfg.est_dim ? Array.from(out.estimate.data) : [];
     const a = out.action.data;
     const scaled = Array.from(a, (v, i) => v * cfg.action_std[i] + cfg.action_mean[i]);
     this.jointPosTarget = [scaled[0], scaled[1], 0, scaled[3], scaled[4], 0];

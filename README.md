@@ -51,7 +51,8 @@ for the same robot model and simulation time step.
 
 - `policy.onnx`: one graph with inputs `obs` (raw actor observation), `est_input` (raw estimator history) and
   `command` (vx, wz), and outputs `action` and the denormalized `estimate`. The observation and estimator-input
-  normalization is baked in, so callers pass unnormalized values.
+  normalization is baked in, so callers pass unnormalized values. A checkpoint trained with `--no_est` exports with
+  `est_dim` 0 in `config.json`, and its graph has only `obs` and `command` in and `action` out.
 - `raiway.xml`: the URDF converted to MJCF at the nominal wheel parameters, with `rotor_inertia` as armature.
 - `meshes/`, `config.json`: visual meshes; dims, scan layout, PD gains and action scaling.
 

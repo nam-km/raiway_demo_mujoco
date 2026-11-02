@@ -8,6 +8,10 @@
     {
       "name": "2026-10-01-08-06-33-5444-MLP_est",
       "label": "#17 \u00b7 16-point scan, edge margin"
+    },
+    {
+      "name": "2026-10-30-05-22-11-5444-MLP",
+      "label": "#23 \u00b7 16-point scan, edge margin, no estimator"
     }
   ]
 }
