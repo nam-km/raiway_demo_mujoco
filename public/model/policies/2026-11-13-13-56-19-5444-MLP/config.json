@@ -1,5 +1,5 @@
 {
-  "checkpoint": "raiway_perceptive_mixed/2026-10-30-05-22-11-5444-MLP/full_50000.pt",
+  "checkpoint": "raiway_perceptive_mixed/2026-11-13-13-56-19-5444-MLP/full_50000.pt",
   "ob_dim": 60,
   "est_input_dim": 0,
   "est_dim": 0,
