@@ -15,7 +15,8 @@ npm run dev          # http://localhost:5173
 npm run build        # static site in dist/ with relative paths, so any subdirectory works (e.g. GitHub Pages)
 ```
 
-Controls: W/S or ↑/↓ drive, A/D or ←/→ turn, R resets, or use the on-screen joystick. The drive keys reach the
+Controls: W/S or ↑/↓ drive, A/D or ←/→ turn, R resets, or use the on-screen joystick. Full deflection defaults to
+1.5 m/s and 1.0 rad/s (the Max speed and Max yaw rate sliders); the height scan is hidden until its box is ticked. The drive keys reach the
 robot even while a slider or a menu has focus. The command is a velocity command (vx, wz), the same
 interface the policy sees in both training episode types.
 
